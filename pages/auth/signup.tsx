@@ -7,6 +7,8 @@ import { useMemo, useState } from 'react';
 import '@/app/globals.css';
 import { signIn } from 'next-auth/react';
 import Button from '@/app/components/Button';
+import { Slide, ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import ParticlesComponent from '@/app/config/particles-config';
 import PasswordVisibility from '@/app/components/PasswordVisibility';
 import { doc, setDoc } from 'firebase/firestore';
@@ -47,7 +49,22 @@ export default function Signup() {
 
         router.push('/auth/signin');
       } catch (error: any) {
-        console.error(error);
+        if (error.code === 'auth/email-already-in-use') {
+          console.error("Error adding item:", error);
+          toast.error('Email already in use!', {
+              position: "bottom-center",
+              autoClose: 3000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+              progress: undefined,
+              theme: "dark",
+              transition: Slide,
+          });
+        } else {
+          console.error(error);
+        }
       }
     }
   });
@@ -187,6 +204,7 @@ export default function Signup() {
           </div>
         </div>
       </main>
+      <ToastContainer />
     </>
   );
 }

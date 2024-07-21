@@ -1,9 +1,10 @@
 import React, { FormEvent, useEffect, useRef, useState } from 'react';
-import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc, where } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/app/firebase';
 import { Slide, ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { useSession } from 'next-auth/react';
 import Delete from './icons/Delete';
 import Edit from './icons/Edit';
 import Stack from './icons/Stack';
@@ -23,6 +24,7 @@ interface Item {
 const placeholderImage = "https://i.ibb.co/nLGsHWQ/f533b100c0b5d3bef97d4c075f12066a.gif";
 
 const Memory: React.FC = () => {
+    const { data: session } = useSession();
     const [items, setItems] = useState<Item[]>([]);
     const [newItem, setNewItem] = useState<Item>({ number: '', date: '', story: '', images: null });
     const [modalImages, setModalImages] = useState<string[]>([]);
@@ -35,35 +37,53 @@ const Memory: React.FC = () => {
     const formRef = useRef<HTMLFormElement>(null);
 
     useEffect(() => {
-        const unsubscribe = onSnapshot(query(collection(db, 'items')), (querySnapshot) => {
-            const itemsArr: Item[] = [];
-            querySnapshot.forEach((doc) => {
-                itemsArr.push({ ...doc.data(), id: doc.id } as Item);
-            });
-            setItems(itemsArr);
-        });
-
+        if (!session?.user?.id) {
+            console.error('User ID is not defined.');
+            return;
+        }
+        
+        const userId = session.user.id;
+        const itemsCollection = collection(db, 'items');
+        const itemsQuery = query(itemsCollection, where('userId', '==', userId));
+        
+        const unsubscribe = onSnapshot(
+            itemsQuery,
+            (querySnapshot) => {
+                const itemsArr: Item[] = [];
+                querySnapshot.forEach((doc) => {
+                    itemsArr.push({ ...doc.data(), id: doc.id } as Item);
+                });
+                setItems(itemsArr);
+            },
+            (error) => {
+                console.error('Firestore query error:', error);
+            }
+        );
+    
         return () => unsubscribe();
-    }, []);
-
+    }, [session?.user?.id]);
+    
     const addItem = async (e: FormEvent) => {
         e.preventDefault();
-    
+        
         if (newItem.number && newItem.date && newItem.story) {
             let imageUrls: string[] = [];
-    
+            const userId = session?.user?.id;
+            
             try {
+                let docRef;
                 if (newItem.images && newItem.images.length > 0) {
-                    const docRef = editItemId ? doc(db, 'items', editItemId) : await addDoc(collection(db, 'items'), {
+                    docRef = editItemId ? doc(db, 'items', editItemId) : await addDoc(collection(db, 'items'), {
                         number: newItem.number.trim(),
                         date: newItem.date,
                         story: newItem.story.trim(),
                         imageUrls: [],
                         favorite: false,
+                        userId: userId,
                     });
-    
+                    
                     const memoryCardId = editItemId || docRef.id;
-    
+                    
                     imageUrls = await Promise.all(
                         newItem.images.map(async (image) => {
                             const imageRef = ref(storage, `images/${memoryCardId}/${image.name}`);
@@ -79,12 +99,12 @@ const Memory: React.FC = () => {
                             story: newItem.story.trim(),
                             imageUrls: imageUrls,
                         });
-                        setEditItemId(null);
                     } else {
                         await updateDoc(doc(db, 'items', memoryCardId), {
                             imageUrls: imageUrls
                         });
                     }
+                    setEditItemId(null);
                 } else {
                     imageUrls.push(placeholderImage);
     
@@ -95,14 +115,14 @@ const Memory: React.FC = () => {
                             story: newItem.story.trim(),
                             imageUrls: imageUrls,
                         });
-                        setEditItemId(null);
                     } else {
-                        const docRef = await addDoc(collection(db, 'items'), {
+                        docRef = await addDoc(collection(db, 'items'), {
                             number: newItem.number.trim(),
                             date: newItem.date,
                             story: newItem.story.trim(),
                             imageUrls: imageUrls,
                             favorite: false,
+                            userId: userId,
                         });
                     }
                 }
@@ -118,10 +138,10 @@ const Memory: React.FC = () => {
                     progress: undefined,
                     theme: "dark",
                     transition: Slide,
-                    });
+                });
             } catch (error) {
                 console.error("Error adding item:", error);
-                toast.error('An unexpected error occurred'), {
+                toast.error('An unexpected error occurred', {
                     position: "bottom-center",
                     autoClose: 3000,
                     hideProgressBar: false,
@@ -131,7 +151,7 @@ const Memory: React.FC = () => {
                     progress: undefined,
                     theme: "dark",
                     transition: Slide,
-                    };
+                });
             }
         } else {
             console.log("Missing fields");
