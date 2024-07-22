@@ -32,22 +32,25 @@ export const authOptions: AuthOptions = {
           );
 
           if (userCredential.user) {
-            // Fetch user name from Firestore
-            const userDoc = doc(db, "user", userCredential.user.uid);
+            // Fetch user profile from Firestore
+            const userDoc = doc(db, "users", userCredential.user.uid);
             const userSnapshot = await getDoc(userDoc);
 
             let userName = 'User'; // Default name
+            let userImage = null; // Default image
+
             if (userSnapshot.exists()) {
               const data = userSnapshot.data();
               console.log("Firestore Data:", data); // Debugging: Log Firestore data
               userName = data?.name || 'User'; // Fetch name from Firestore
+              userImage = data?.image || null; // Fetch image from Firestore
             }
 
             return {
               id: userCredential.user.uid,
               email: userCredential.user.email,
               name: userName,
-              image: userCredential.user.photoURL || null,
+              image: userImage,
             };
           }
           return null;
