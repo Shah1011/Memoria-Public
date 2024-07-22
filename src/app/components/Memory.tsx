@@ -10,6 +10,7 @@ import Edit from './icons/Edit';
 import Stack from './icons/Stack';
 import ImageModal from './ImageModal';
 import Favorite from './icons/Favorite';
+import ToggleFavorite from './ToggleFavorite';
 
 interface Item {
     number: string;
@@ -307,20 +308,14 @@ const Memory: React.FC = () => {
                         </div>
                     </div>
                     <div className='w-full p-4'>
-                        <div className='flex justify-start mb-8 text-[12px] font-semibold text-white'>
-                            <button
-                                className={`px-4 py-2 rounded-l-full ${!showFavorites ? 'bg-slate-700' : 'bg-slate-500'}`}
-                                onClick={() => setShowFavorites(false)}
-                            >
-                                All
-                            </button>
-                            <button
-                                className={`px-4 py-2 rounded-r-full ${showFavorites ? 'bg-slate-700' : 'bg-slate-500'}`}
-                                onClick={() => setShowFavorites(true)}
-                            >
-                                Favorites
-                            </button>
-                        </div>
+                    {filteredItems.length > 0 && (
+                        <ToggleFavorite 
+                            showFavorites={false} 
+                            onToggle={function (value: boolean): void {
+                                throw new Error('Function not implemented.');
+                            }}
+                        />
+                    )}
                         <ul className='grid max-sm:grid-cols-1 xl:grid-cols-4 max-lg:grid-cols-3 gap-4 text-white'>
                             {currentItems.map((item, id) => (
                                 <li
@@ -380,6 +375,7 @@ const Memory: React.FC = () => {
                                 </li>
                             ))}
                         </ul>
+                        {filteredItems.length > 0 && (
                         <div className='flex justify-between mt-4'>
                             <button
                                 onClick={() => paginate(currentPage - 1)}
@@ -396,16 +392,18 @@ const Memory: React.FC = () => {
                                 Next &rarr;
                             </button>
                         </div>
+                        )}
                     </div>
                 </section>
             </div>
             {modalImages.length > 0 && (
                 <ImageModal
-                    images={modalImages}
-                    currentIndex={currentImageIndex}
-                    onClose={closeModal}
-                    onNext={showNextImage}
-                    onPrev={showPrevImage}
+                        images={modalImages}
+                        currentIndex={currentImageIndex}
+                        onClose={closeModal}
+                        onNext={showNextImage}
+                        onPrev={showPrevImage} 
+                        isOpen={false}                
                 />
             )}
         </main>

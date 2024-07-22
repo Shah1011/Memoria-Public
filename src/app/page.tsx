@@ -10,8 +10,8 @@ export default function Home() {
       <Navbar />
       <ParticlesComponent />
       <Memory />
-      <div className="z-10 relative text-white text-center text-[10px] p-2">
-        Made by Danish for Sania✨ - 2024
+      <div className="z-10 relative text-white text-center text-[12px] p-2 ">
+        Designed and built by <a href='https://github.com/Shah1011' target='_blank' className='hover:text-primary1'>Shah</a> - 2024
       </div>
     </main>
     </>

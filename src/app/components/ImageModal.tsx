@@ -1,4 +1,7 @@
+import React from 'react';
+
 interface ImageModalProps {
+    isOpen: boolean;  // Add the isOpen prop
     images: string[];
     currentIndex: number;
     onClose: () => void;
@@ -6,7 +9,9 @@ interface ImageModalProps {
     onPrev: () => void;
 }
 
-const ImageModal: React.FC<ImageModalProps> = ({ images, currentIndex, onClose, onNext, onPrev }) => {
+const ImageModal: React.FC<ImageModalProps> = ({ isOpen, images, currentIndex, onClose, onNext, onPrev }) => {
+    if (!isOpen) return null;  // Only render if isOpen is true
+
     return (
         <div
             className='fixed top-0 left-0 w-full h-full bg-black bg-opacity-75 flex items-center justify-center z-50'
