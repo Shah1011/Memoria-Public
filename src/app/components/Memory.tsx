@@ -11,7 +11,6 @@ import Stack from './icons/Stack';
 import ImageModal from './ImageModal';
 import Favorite from './icons/Favorite';
 import ToggleFavorite from './ToggleFavorite';
-import SpecialButton from './SpecialButton';
 
 interface Item {
     number: string;
@@ -291,10 +290,6 @@ const Memory: React.FC = () => {
                                 >
                                     {editItemId ? 'Update Memory' : 'Add Memory'}
                                 </button>
-                                <SpecialButton         
-                                    onClick={addItem}
-                                    editItemId={!!editItemId}
-                                    />
                                 <button
                                     onClick={clearForm}
                                     className='text-primary1'
