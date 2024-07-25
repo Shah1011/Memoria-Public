@@ -68,7 +68,7 @@ const Memory: React.FC = () => {
         e.preventDefault();
         
         if (newItem.number && newItem.date && newItem.story) {
-            let imageUrls: string[] = [];
+            let imageUrls: string[] = newItem.imageUrls || [];
             const userId = session?.user?.id;
             
             try {
@@ -184,14 +184,20 @@ const Memory: React.FC = () => {
         });
     };
 
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
     const openModal = (imageUrls: string[], initialIndex: number = 0) => {
-        setModalImages(imageUrls);
-        setCurrentImageIndex(initialIndex);
+        const userImages = imageUrls.filter(url => url !== placeholderImage);
+        if (userImages.length === 0) return;
+        setModalImages(userImages);
+        setCurrentImageIndex(Math.min(initialIndex, userImages.length - 1));
+        setIsModalOpen(true);
     };
 
     const closeModal = () => {
         setModalImages([]);
         setCurrentImageIndex(0);
+        setIsModalOpen(false);
     };
 
     const showNextImage = () => {
@@ -211,6 +217,7 @@ const Memory: React.FC = () => {
             images: null,
         });
 
+        setModalImages(item.imageUrls || []);
         formRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
@@ -237,6 +244,13 @@ const Memory: React.FC = () => {
         setNewItem({ number: '', date: '', story: '', images: null });
         setEditItemId(null);
     };
+
+    const handleToggle = (value: boolean) => {
+        setShowFavorites(value);
+        setCurrentPage(1);
+    };
+
+    const hasFavorites = items.some(item => item.favorite);
 
     return (
         <>
@@ -310,12 +324,11 @@ const Memory: React.FC = () => {
                     <div className='w-full p-4'>
                     {filteredItems.length > 0 && (
                         <ToggleFavorite 
-                            showFavorites={false} 
-                            onToggle={function (value: boolean): void {
-                                throw new Error('Function not implemented.');
-                            }}
+                            showFavorites={false}
+                            onToggle={handleToggle} 
+                            hasFavorites={hasFavorites}                        
                         />
-                    )}
+                     )}
                         <ul className='grid max-sm:grid-cols-1 xl:grid-cols-4 max-lg:grid-cols-3 gap-4 text-white'>
                             {currentItems.map((item, id) => (
                                 <li
@@ -331,7 +344,7 @@ const Memory: React.FC = () => {
                                             <div className='flex justify-center'>
                                                 {item.imageUrls && item.imageUrls.length > 0 ? (
                                                     <div
-                                                        className='w-full h-[200px] overflow-hidden relative group cursor-pointer'
+                                                    className={`w-full h-[200px] overflow-hidden relative group ${item.imageUrls[0] === placeholderImage ? 'cursor-default' : 'cursor-pointer'}`}
                                                         onClick={() => openModal(item.imageUrls!, 0)}
                                                     >
                                                         <img src={item.imageUrls[0]} alt="Uploaded" className='w-full h-full object-cover rounded-t-lg mb-4' />
@@ -403,7 +416,7 @@ const Memory: React.FC = () => {
                         onClose={closeModal}
                         onNext={showNextImage}
                         onPrev={showPrevImage} 
-                        isOpen={false}                
+                        isOpen={isModalOpen}              
                 />
             )}
         </main>

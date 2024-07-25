@@ -1,7 +1,5 @@
-import React from 'react';
-
 interface ImageModalProps {
-    isOpen: boolean;  // Add the isOpen prop
+    isOpen: boolean;
     images: string[];
     currentIndex: number;
     onClose: () => void;
@@ -10,16 +8,16 @@ interface ImageModalProps {
 }
 
 const ImageModal: React.FC<ImageModalProps> = ({ isOpen, images, currentIndex, onClose, onNext, onPrev }) => {
-    if (!isOpen) return null;  // Only render if isOpen is true
+    if (!isOpen) return null;
 
     return (
         <div
             className='fixed top-0 left-0 w-full h-full bg-black bg-opacity-75 flex items-center justify-center z-50'
             onClick={onClose}
         >
-            <div className='relative max-w-4xl max-h-4xl'>
+            <div className='relative max-w-4xl max-h-4xl bg-white p-4'>
                 <button
-                    className='absolute top-4 right-4 text-white text-2xl'
+                    className='absolute top-4 right-4 text-black text-2xl'
                     onClick={(e) => {
                         e.stopPropagation();
                         onClose();
@@ -30,7 +28,7 @@ const ImageModal: React.FC<ImageModalProps> = ({ isOpen, images, currentIndex, o
                 {images.length > 1 && (
                     <>
                         <button
-                            className='absolute top-1/2 left-4 text-white text-2xl'
+                            className='absolute top-1/2 left-4 text-black text-2xl'
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onPrev();
@@ -39,7 +37,7 @@ const ImageModal: React.FC<ImageModalProps> = ({ isOpen, images, currentIndex, o
                             &#9664;
                         </button>
                         <button
-                            className='absolute top-1/2 right-4 text-white text-2xl'
+                            className='absolute top-1/2 right-4 text-black text-2xl'
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onNext();
