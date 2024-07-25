@@ -250,7 +250,7 @@ const Memory: React.FC = () => {
                     />
                 </div>
                 <section className='flex flex-col justify-center items-center gap-5'>
-                    <div className='bg-slate-800 p-4 rounded-lg flex flex-col w-auto '>
+                    <div className='bg-slate-800 p-2 rounded-lg flex flex-col w-auto '>
                         <div className='p-4 overflow-auto flex gap-4'>
                             <form className='flex flex-col gap-3 items-center text-black overflow-hidden'>
                                 <div className='flex w-full mb-2 justify-between gap-3 max-sm:flex-col'>
@@ -285,7 +285,7 @@ const Memory: React.FC = () => {
                                 />
                                 <button
                                     onClick={addItem}
-                                    className='text-white bg-slate-950 hover:bg-slate-900 p-2 text-lg w-3/4'
+                                    className='text-white bg-primary1 hover:bg-slate-900 p-2 text-lg w-3/4 rounded-lg transition duration-100 ease-linear'
                                     type='submit'
                                 >
                                     {editItemId ? 'Update Memory' : 'Add Memory'}
