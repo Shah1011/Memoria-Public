@@ -1,16 +1,24 @@
 import React, { FormEvent, useEffect, useRef, useState } from 'react';
-import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc, where } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '@/app/firebase';
+import { auth, db, storage } from '@/app/firebase';
 import { Slide, ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { useSession } from 'next-auth/react';
 import Delete from './icons/Delete';
 import Edit from './icons/Edit';
 import Stack from './icons/Stack';
 import ImageModal from './ImageModal';
 import Favorite from './icons/Favorite';
-import ToggleFavorite from './ToggleFavorite';
+import { onAuthStateChanged } from 'firebase/auth';
+import Loader from './Loader';
+
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    console.log('Authenticated User UID:', user.uid);
+  } else {
+    console.log('No user is authenticated');
+  }
+});
 
 interface Item {
     number: string;
@@ -25,7 +33,6 @@ interface Item {
 const placeholderImage = "https://i.ibb.co/nLGsHWQ/f533b100c0b5d3bef97d4c075f12066a.gif";
 
 const Memory: React.FC = () => {
-    const { data: session } = useSession();
     const [items, setItems] = useState<Item[]>([]);
     const [newItem, setNewItem] = useState<Item>({ number: '', date: '', story: '', images: null });
     const [modalImages, setModalImages] = useState<string[]>([]);
@@ -33,58 +40,42 @@ const Memory: React.FC = () => {
     const [editItemId, setEditItemId] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [showFavorites, setShowFavorites] = useState(false);
+    const [loading, setLoading] = useState(false);
     const itemsPerPage = 24;
-
     const formRef = useRef<HTMLFormElement>(null);
+    
 
     useEffect(() => {
-        if (!session?.user?.id) {
-            console.error('User ID is not defined.');
-            return;
-        }
-        
-        const userId = session.user.id;
-        const itemsCollection = collection(db, 'items');
-        const itemsQuery = query(itemsCollection, where('userId', '==', userId));
-        
-        const unsubscribe = onSnapshot(
-            itemsQuery,
-            (querySnapshot) => {
-                const itemsArr: Item[] = [];
-                querySnapshot.forEach((doc) => {
-                    itemsArr.push({ ...doc.data(), id: doc.id } as Item);
-                });
-                setItems(itemsArr);
-            },
-            (error) => {
-                console.error('Firestore query error:', error);
-            }
-        );
-    
+        const unsubscribe = onSnapshot(query(collection(db, 'items')), (querySnapshot) => {
+            const itemsArr: Item[] = [];
+            querySnapshot.forEach((doc) => {
+                itemsArr.push({ ...doc.data(), id: doc.id } as Item);
+            });
+            setItems(itemsArr);
+        });
+
         return () => unsubscribe();
-    }, [session?.user?.id]);
-    
+    }, []);
+
     const addItem = async (e: FormEvent) => {
         e.preventDefault();
-        
+    
         if (newItem.number && newItem.date && newItem.story) {
-            let imageUrls: string[] = newItem.imageUrls || [];
-            const userId = session?.user?.id;
-            
+            setLoading(true);
+            let imageUrls: string[] = [];
+    
             try {
-                let docRef;
                 if (newItem.images && newItem.images.length > 0) {
-                    docRef = editItemId ? doc(db, 'items', editItemId) : await addDoc(collection(db, 'items'), {
+                    const docRef = editItemId ? doc(db, 'items', editItemId) : await addDoc(collection(db, 'items'), {
                         number: newItem.number.trim(),
                         date: newItem.date,
                         story: newItem.story.trim(),
                         imageUrls: [],
                         favorite: false,
-                        userId: userId,
                     });
-                    
+    
                     const memoryCardId = editItemId || docRef.id;
-                    
+    
                     imageUrls = await Promise.all(
                         newItem.images.map(async (image) => {
                             const imageRef = ref(storage, `images/${memoryCardId}/${image.name}`);
@@ -100,12 +91,12 @@ const Memory: React.FC = () => {
                             story: newItem.story.trim(),
                             imageUrls: imageUrls,
                         });
+                        setEditItemId(null);
                     } else {
                         await updateDoc(doc(db, 'items', memoryCardId), {
                             imageUrls: imageUrls
                         });
                     }
-                    setEditItemId(null);
                 } else {
                     imageUrls.push(placeholderImage);
     
@@ -116,14 +107,14 @@ const Memory: React.FC = () => {
                             story: newItem.story.trim(),
                             imageUrls: imageUrls,
                         });
+                        setEditItemId(null);
                     } else {
-                        docRef = await addDoc(collection(db, 'items'), {
+                        const docRef = await addDoc(collection(db, 'items'), {
                             number: newItem.number.trim(),
                             date: newItem.date,
                             story: newItem.story.trim(),
                             imageUrls: imageUrls,
                             favorite: false,
-                            userId: userId,
                         });
                     }
                 }
@@ -139,7 +130,7 @@ const Memory: React.FC = () => {
                     progress: undefined,
                     theme: "dark",
                     transition: Slide,
-                });
+                    });
             } catch (error) {
                 console.error("Error adding item:", error);
                 toast.error('An unexpected error occurred', {
@@ -153,6 +144,8 @@ const Memory: React.FC = () => {
                     theme: "dark",
                     transition: Slide,
                 });
+            } finally {
+                setLoading(false);
             }
         } else {
             console.log("Missing fields");
@@ -184,20 +177,14 @@ const Memory: React.FC = () => {
         });
     };
 
-    const [isModalOpen, setIsModalOpen] = useState(false);
-
     const openModal = (imageUrls: string[], initialIndex: number = 0) => {
-        const userImages = imageUrls.filter(url => url !== placeholderImage);
-        if (userImages.length === 0) return;
-        setModalImages(userImages);
-        setCurrentImageIndex(Math.min(initialIndex, userImages.length - 1));
-        setIsModalOpen(true);
+        setModalImages(imageUrls);
+        setCurrentImageIndex(initialIndex);
     };
 
     const closeModal = () => {
         setModalImages([]);
         setCurrentImageIndex(0);
-        setIsModalOpen(false);
     };
 
     const showNextImage = () => {
@@ -217,7 +204,6 @@ const Memory: React.FC = () => {
             images: null,
         });
 
-        setModalImages(item.imageUrls || []);
         formRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
@@ -245,13 +231,6 @@ const Memory: React.FC = () => {
         setEditItemId(null);
     };
 
-    const handleToggle = (value: boolean) => {
-        setShowFavorites(value);
-        setCurrentPage(1);
-    };
-
-    const hasFavorites = items.some(item => item.favorite);
-
     return (
         <>
         <main className='flex flex-col items-center justify-between mx-auto' ref={formRef}>
@@ -264,14 +243,14 @@ const Memory: React.FC = () => {
                     />
                 </div>
                 <section className='flex flex-col justify-center items-center gap-5'>
-                    <div className='bg-slate-800 p-2 rounded-lg flex flex-col w-auto '>
+                    <div className='bg-slate-800 p-4 rounded-lg flex flex-col w-auto '>
                         <div className='p-4 overflow-auto flex gap-4'>
                             <form className='flex flex-col gap-3 items-center text-black overflow-hidden'>
                                 <div className='flex w-full mb-2 justify-between gap-3 max-sm:flex-col'>
                                     <input
                                         value={newItem.number}
                                         onChange={(e) => setNewItem({ ...newItem, number: e.target.value })}
-                                        className='w-3/4  max-sm:w-full border-0 bg-gray-700  text-gray-200 rounded-md p-3 focus:outline-none transition ease-in-out duration-150'
+                                        className='w-3/4  max-sm:w-full border-0 bg-gray-700  text-gray-200  rounded-md p-3 focus:outline-none transition ease-in-out duration-150'
                                         type='text'
                                         placeholder='Enter Number'
                                     />
@@ -299,10 +278,14 @@ const Memory: React.FC = () => {
                                 />
                                 <button
                                     onClick={addItem}
-                                    className='text-white bg-primary1 hover:bg-slate-900 p-2 text-lg w-3/4 rounded-lg transition duration-100 ease-linear'
-                                    type='submit'
+                                    className="flex items-center justify-center text-white bg-primary1 hover:bg-slate-900 p-2 text-lg w-3/4 rounded-lg transition duration-100 ease-linear"
+                                    disabled={loading}
+                                    type="submit"
                                 >
-                                    {editItemId ? 'Update Memory' : 'Add Memory'}
+                                    {loading ? <Loader /> : null}
+                                    <span className={`${loading ? "ml-2" : ""}`}>
+                                        {editItemId ? "Update Memory" : "Add Memory"}
+                                    </span>
                                 </button>
                                 <button
                                     onClick={clearForm}
@@ -322,13 +305,20 @@ const Memory: React.FC = () => {
                         </div>
                     </div>
                     <div className='w-full p-4'>
-                    {filteredItems.length > 0 && (
-                        <ToggleFavorite 
-                            showFavorites={false}
-                            onToggle={handleToggle} 
-                            hasFavorites={hasFavorites}                        
-                        />
-                     )}
+                        <div className='flex justify-start mb-8 text-[12px] font-semibold text-white'>
+                            <button
+                                className={`px-4 py-2 rounded-l-full ${!showFavorites ? 'bg-slate-700' : 'bg-slate-500'}`}
+                                onClick={() => setShowFavorites(false)}
+                            >
+                                All
+                            </button>
+                            <button
+                                className={`px-4 py-2 rounded-r-full ${showFavorites ? 'bg-slate-700' : 'bg-slate-500'}`}
+                                onClick={() => setShowFavorites(true)}
+                            >
+                                Favorites
+                            </button>
+                        </div>
                         <ul className='grid max-sm:grid-cols-1 xl:grid-cols-4 max-lg:grid-cols-3 gap-4 text-white'>
                             {currentItems.map((item, id) => (
                                 <li
@@ -344,7 +334,7 @@ const Memory: React.FC = () => {
                                             <div className='flex justify-center'>
                                                 {item.imageUrls && item.imageUrls.length > 0 ? (
                                                     <div
-                                                    className={`w-full h-[200px] overflow-hidden relative group ${item.imageUrls[0] === placeholderImage ? 'cursor-default' : 'cursor-pointer'}`}
+                                                        className='w-full h-[200px] overflow-hidden relative group cursor-pointer'
                                                         onClick={() => openModal(item.imageUrls!, 0)}
                                                     >
                                                         <img src={item.imageUrls[0]} alt="Uploaded" className='w-full h-full object-cover rounded-t-lg mb-4' />
@@ -388,7 +378,6 @@ const Memory: React.FC = () => {
                                 </li>
                             ))}
                         </ul>
-                        {filteredItems.length > 0 && (
                         <div className='flex justify-between mt-4'>
                             <button
                                 onClick={() => paginate(currentPage - 1)}
@@ -405,18 +394,16 @@ const Memory: React.FC = () => {
                                 Next &rarr;
                             </button>
                         </div>
-                        )}
                     </div>
                 </section>
             </div>
             {modalImages.length > 0 && (
                 <ImageModal
-                        images={modalImages}
-                        currentIndex={currentImageIndex}
-                        onClose={closeModal}
-                        onNext={showNextImage}
-                        onPrev={showPrevImage} 
-                        isOpen={isModalOpen}              
+                    images={modalImages}
+                    currentIndex={currentImageIndex}
+                    onClose={closeModal}
+                    onNext={showNextImage}
+                    onPrev={showPrevImage} isOpen={false}                
                 />
             )}
         </main>
